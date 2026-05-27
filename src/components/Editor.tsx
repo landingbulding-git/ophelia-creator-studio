@@ -25,7 +25,7 @@ import {
   ExternalLink,
   Layers
 } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 const nodeTypes = {
