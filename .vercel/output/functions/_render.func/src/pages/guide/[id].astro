@@ -2,6 +2,8 @@
 import Layout from '../../layouts/Layout.astro';
 import EditorApp from '../../components/EditorApp';
 
+export const prerender = false;
+
 const { id } = Astro.params;
 
 if (!id) {
