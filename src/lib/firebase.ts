@@ -12,7 +12,13 @@ const firebaseConfig = {
   measurementId: "G-V65RV6R6GG"
 };
 
+// Only initialize Firebase if we are in the browser
+const isBrowser = typeof window !== "undefined";
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Export auth and db, but they will only be truly usable on the client.
+// In Astro SSR, trying to use these immediately at the module level will fail.
+export const auth = isBrowser ? getAuth(app) : null as any;
+export const db = isBrowser ? getFirestore(app) : null as any;
 export default app;
