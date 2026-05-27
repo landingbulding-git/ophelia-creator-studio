@@ -1,0 +1,13 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Dashboard from '../components/Dashboard';
+import { AuthProvider } from '../context/AuthContext';
+---
+
+<Layout title="Dashboard">
+	<main>
+		<AuthProvider client:load>
+			<Dashboard client:load />
+		</AuthProvider>
+	</main>
+</Layout>
