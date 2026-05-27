@@ -10,7 +10,9 @@ import {
   Layers,
   Layout as LayoutIcon,
   LogOut,
-  Sparkles
+  Sparkles,
+  Link as LinkIcon,
+  Check
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -32,6 +34,16 @@ export default function Dashboard() {
   const { user, signIn, logOut, loading } = useAuth();
   const [guides, setGuides] = useState<GuideMetadata[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = (e: React.MouseEvent, guide: GuideMetadata) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `https://${guide.domain || 'example.com'}?opheliaGuide=${guide.id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(guide.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -155,12 +167,22 @@ export default function Dashboard() {
                 <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center group-hover:bg-ophelia-orange/10 transition-colors">
                   <Play className="w-5 h-5 text-gray-400 group-hover:text-ophelia-orange transition-colors" />
                 </div>
-                <button 
-                  onClick={(e) => handleDelete(e, guide.id)}
-                  className="p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <button 
+                    onClick={(e) => handleCopyLink(e, guide)}
+                    className="p-2 text-gray-600 hover:text-white transition-all"
+                    title="Copy Share Link"
+                  >
+                    {copiedId === guide.id ? <Check className="w-4 h-4 text-green-400" /> : <LinkIcon className="w-4 h-4" />}
+                  </button>
+                  <button 
+                    onClick={(e) => handleDelete(e, guide.id)}
+                    className="p-2 text-gray-600 hover:text-red-400 transition-all"
+                    title="Delete Guide"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <h3 className="font-bold text-lg mb-1 truncate">{guide.title}</h3>
