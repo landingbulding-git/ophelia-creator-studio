@@ -21,10 +21,9 @@ import {
   Info, 
   MousePointer2, 
   Type, 
-  Eye, 
   Trash2,
-  Share2,
-  ExternalLink
+  ExternalLink,
+  Layers
 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';

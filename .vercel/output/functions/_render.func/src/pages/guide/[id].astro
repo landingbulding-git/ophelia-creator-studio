@@ -1,0 +1,19 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Editor from '../../components/Editor';
+import { AuthProvider } from '../../context/AuthContext';
+
+const { id } = Astro.params;
+
+if (!id) {
+    return Astro.redirect('/');
+}
+---
+
+<Layout title="Guide Editor">
+	<main>
+		<AuthProvider client:load>
+			<Editor client:load guideId={id} />
+		</AuthProvider>
+	</main>
+</Layout>
