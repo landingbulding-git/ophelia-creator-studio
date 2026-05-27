@@ -25,7 +25,7 @@ import {
   ExternalLink,
   Layers
 } from 'lucide-react';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 const nodeTypes = {
@@ -154,11 +154,23 @@ export default function Editor({ guideId }: EditorProps) {
       if (!res.ok) throw new Error('Worker update failed');
 
       // 2. Update Firestore Metadata (e.g. title, step count)
-      await setDoc(doc(db, 'guides', guideId), {
+      const docRef = doc(db, 'guides', guideId);
+      const docSnap = await getDoc(docRef);
+      
+      const metadata: any = {
         title: guide.name,
         step_count: updatedSteps.length,
-        updated_at: new Date()
-      }, { merge: true });
+        userId: user.uid,
+        updated_at: serverTimestamp()
+      };
+
+      // If document doesn't exist yet, we must set created_at 
+      // so it shows up in the Dashboard's ordered query.
+      if (!docSnap.exists()) {
+        metadata.created_at = serverTimestamp();
+      }
+
+      await setDoc(docRef, metadata, { merge: true });
 
       alert('Guide saved successfully!');
     } catch (err) {
