@@ -154,11 +154,11 @@ export default function Editor({ guideId }: EditorProps) {
       if (!res.ok) throw new Error('Worker update failed');
 
       // 2. Update Firestore Metadata (e.g. title, step count)
-      await updateDoc(doc(db, 'guides', guideId), {
+      await setDoc(doc(db, 'guides', guideId), {
         title: guide.name,
         step_count: updatedSteps.length,
         updated_at: new Date()
-      });
+      }, { merge: true });
 
       alert('Guide saved successfully!');
     } catch (err) {
