@@ -14,6 +14,12 @@ const StepNode = ({ data, selected }: NodeProps) => {
     }
   };
 
+  const getScreenshotSrc = (src: string) => {
+    if (!src) return '';
+    if (src.startsWith('data:')) return src;
+    return `data:image/jpeg;base64,${src}`;
+  };
+
   return (
     <div className={`
       relative group transition-all duration-200
@@ -26,7 +32,7 @@ const StepNode = ({ data, selected }: NodeProps) => {
       <div className="aspect-video bg-black/40 relative overflow-hidden flex items-center justify-center border-b border-white/5">
         {step.screenshot ? (
           <img 
-            src={step.screenshot} 
+            src={getScreenshotSrc(step.screenshot)} 
             alt={`Step ${index + 1}`}
             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" 
           />
