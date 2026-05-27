@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[Studio] Broadcasting auth update to extension...');
         window.postMessage({ 
           type: 'OPHELIA_AUTH_UPDATE', 
-          payload: { token, email: user.email } 
+          payload: { token, email: user.email, uid: user.uid } 
         }, '*');
       }
     });
