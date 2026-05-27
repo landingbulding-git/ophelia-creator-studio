@@ -187,6 +187,12 @@ export default function Editor({ guideId }: EditorProps) {
     </div>
   );
 
+  const getScreenshotSrc = (src: string) => {
+    if (!src) return '';
+    if (src.startsWith('data:')) return src;
+    return `data:image/jpeg;base64,${src}`;
+  };
+
   const activeStep = selectedNode?.data.step as any;
 
   return (
@@ -266,7 +272,7 @@ export default function Editor({ guideId }: EditorProps) {
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">UI Capture</label>
                   <div className="rounded-2xl border border-white/10 overflow-hidden bg-black aspect-video relative group">
                     {activeStep.screenshot ? (
-                      <img src={activeStep.screenshot} className="w-full h-full object-contain" />
+                      <img src={getScreenshotSrc(activeStep.screenshot)} className="w-full h-full object-contain" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-700 italic text-sm">No screenshot captured</div>
                     )}
