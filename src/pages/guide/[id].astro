@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Editor from '../../components/Editor';
-import { AuthProvider } from '../../context/AuthContext';
+import EditorApp from '../../components/EditorApp';
 
 const { id } = Astro.params;
 
@@ -12,8 +11,6 @@ if (!id) {
 
 <Layout title="Guide Editor">
 	<main>
-		<AuthProvider client:load>
-			<Editor client:load guideId={id} />
-		</AuthProvider>
+		<EditorApp client:only="react" guideId={id} />
 	</main>
 </Layout>

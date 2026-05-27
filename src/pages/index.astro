@@ -1,13 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Dashboard from '../components/Dashboard';
-import { AuthProvider } from '../context/AuthContext';
+import DashboardApp from '../components/DashboardApp';
 ---
 
 <Layout title="Dashboard">
 	<main>
-		<AuthProvider client:load>
-			<Dashboard client:load />
-		</AuthProvider>
+		<DashboardApp client:only="react" />
 	</main>
 </Layout>
