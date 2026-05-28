@@ -251,8 +251,18 @@ export default function Editor({ guideId }: EditorProps) {
       const docRef = doc(db, 'guides', guideId);
       const docSnap = await getDoc(docRef);
       
+      const firstStep = updatedSteps[0];
+      let domain = guide.domain;
+      let pageUrl = guide.pageUrl;
+      if (firstStep?.url) {
+          pageUrl = firstStep.url;
+          try { domain = new URL(firstStep.url).hostname; } catch(_) {}
+      }
+
       const metadata: any = {
         title: guide.name,
+        domain: domain,
+        pageUrl: pageUrl,
         step_count: updatedSteps.length,
         userId: user.uid,
         updated_at: serverTimestamp()
