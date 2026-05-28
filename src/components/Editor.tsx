@@ -23,7 +23,8 @@ import {
   Type, 
   Trash2,
   ExternalLink,
-  Layers
+  Layers,
+  CheckCircle2
 } from 'lucide-react';
 import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -46,6 +47,7 @@ export default function Editor({ guideId }: EditorProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [generatingVars, setGeneratingVars] = useState(false);
 
   const fetchGuide = useCallback(async () => {
     try {
@@ -148,6 +150,71 @@ export default function Editor({ guideId }: EditorProps) {
             step: { ...(selectedNode.data.step as any), prompt: newPrompt }
         }
     });
+  };
+
+  const handleParseVariables = async () => {
+    const activeStep = selectedNode?.data.step as any;
+    if (!selectedNode || !activeStep.prompt) return;
+    
+    const matches = Array.from(activeStep.prompt.matchAll(/<([^>]+)>/g));
+    const vars = matches.map(m => m[1]);
+    
+    if (vars.length === 0) {
+        alert("No variables found. Use <variable_name> syntax.");
+        return;
+    }
+    
+    setGeneratingVars(true);
+    try {
+        const token = await user?.getIdToken();
+        const res = await fetch(`https://ophelia-gemini-worker.norbertb-consulting.workers.dev/claude`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+                system: "You are a UX assistant. Given a prompt containing dynamic variables in <brackets>, generate a brief, clear question for EACH variable to ask the user for its value. Respond with ONLY a JSON object where keys are the variable names (without brackets) and values are the questions.",
+                messages: [{ role: 'user', content: `Prompt: "${activeStep.prompt}"` }]
+            })
+        });
+        
+        if (!res.ok) throw new Error('AI call failed');
+        const data = await res.json();
+        const aiText = data.content?.find((c: any) => c.type === 'text')?.text || '{}';
+        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+        const questions = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+
+        // Update step data
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.id === selectedNode.id) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  step: { ...(node.data.step as any), variables: questions },
+                },
+              };
+            }
+            return node;
+          })
+        );
+        
+        setSelectedNode({
+            ...selectedNode,
+            data: {
+                ...selectedNode.data,
+                step: { ...(selectedNode.data.step as any), variables: questions }
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        alert('Failed to generate questions.');
+    } finally {
+        setGeneratingVars(false);
+    }
   };
 
   const handleSave = async () => {
@@ -343,15 +410,39 @@ export default function Editor({ guideId }: EditorProps) {
                 {/* AI Prompt Extension */}
                 {activeStep.action === 'type' && (
                   <section className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    {activeStep.variables && Object.keys(activeStep.variables).length > 0 && (
+                      <div className="mb-4 space-y-3">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">Generated Questions</label>
+                        <div className="space-y-2">
+                          {Object.entries(activeStep.variables).map(([key, question]: [string, any]) => (
+                            <div key={key} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                              <div className="text-[9px] text-ophelia-orange font-bold uppercase mb-1">{key}</div>
+                              <div className="text-xs text-gray-300 leading-relaxed">{question}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">AI Prompt / Auto-Paste</label>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">AI Prompt / Auto-Paste</label>
+                        <button 
+                          onClick={handleParseVariables}
+                          disabled={generatingVars}
+                          className="p-1 hover:bg-white/10 rounded text-green-500 disabled:opacity-50 transition-colors flex items-center justify-center"
+                          title="Parse variables and generate questions"
+                        >
+                          {generatingVars ? <div className="animate-spin h-3 w-3 border-b-2 border-green-500 rounded-full" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                       <div className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[9px] font-bold border border-blue-500/20">NEW</div>
                     </div>
                     <textarea 
                       value={activeStep.prompt || ''}
                       onChange={(e) => handleUpdatePrompt(e.target.value)}
                       className="w-full bg-blue-500/[0.03] border border-blue-500/20 rounded-xl p-4 text-sm leading-relaxed focus:border-blue-500/50 outline-none h-24 resize-none transition-colors text-blue-100"
-                      placeholder="Paste the prompt or text to be automatically entered here..."
+                      placeholder="Paste text or use <variable> syntax..."
                     />
                     <p className="text-[10px] text-gray-600 mt-2 italic">If set, Ophelia will automatically paste this text into the field during playback.</p>
                   </section>
