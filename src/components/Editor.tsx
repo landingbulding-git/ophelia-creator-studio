@@ -123,6 +123,33 @@ export default function Editor({ guideId }: EditorProps) {
     });
   };
 
+  const handleUpdatePrompt = (newPrompt: string) => {
+    if (!selectedNode) return;
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              step: { ...(node.data.step as any), prompt: newPrompt },
+            },
+          };
+        }
+        return node;
+      })
+    );
+    
+    setSelectedNode({
+        ...selectedNode,
+        data: {
+            ...selectedNode.data,
+            step: { ...(selectedNode.data.step as any), prompt: newPrompt }
+        }
+    });
+  };
+
   const handleSave = async () => {
     if (!user || !guide) return;
     setSaving(true);
@@ -312,6 +339,23 @@ export default function Editor({ guideId }: EditorProps) {
                     )}
                   </div>
                 </section>
+
+                {/* AI Prompt Extension */}
+                {activeStep.action === 'type' && (
+                  <section className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">AI Prompt / Auto-Paste</label>
+                      <div className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[9px] font-bold border border-blue-500/20">NEW</div>
+                    </div>
+                    <textarea 
+                      value={activeStep.prompt || ''}
+                      onChange={(e) => handleUpdatePrompt(e.target.value)}
+                      className="w-full bg-blue-500/[0.03] border border-blue-500/20 rounded-xl p-4 text-sm leading-relaxed focus:border-blue-500/50 outline-none h-24 resize-none transition-colors text-blue-100"
+                      placeholder="Paste the prompt or text to be automatically entered here..."
+                    />
+                    <p className="text-[10px] text-gray-600 mt-2 italic">If set, Ophelia will automatically paste this text into the field during playback.</p>
+                  </section>
+                )}
               </div>
 
               <div className="p-6 border-t border-white/5 bg-black/20">
