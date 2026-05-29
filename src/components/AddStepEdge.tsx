@@ -31,7 +31,7 @@ export default function AddStepEdge({
   const onEdgeClick = (evt: React.MouseEvent) => {
     evt.stopPropagation();
     if (data?.onAddStep) {
-        data.onAddStep(id);
+        data.onAddStep(id, evt);
     }
   };
 

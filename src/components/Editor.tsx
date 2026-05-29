@@ -92,7 +92,7 @@ export default function Editor({ guideId }: EditorProps) {
           animated: true,
           style: { stroke: '#ff7a1a', strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
-          data: { onAddStep: (edgeId: string) => handleAddStepClick(edgeId) }
+          data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
         });
       }
 
@@ -105,18 +105,16 @@ export default function Editor({ guideId }: EditorProps) {
     }
   }, [guideId, user, setNodes, setEdges]);
 
-  const handleAddStepClick = (edgeId: string) => {
-    const edge = edges.find(e => e.id === edgeId);
-    if (!edge) return;
+  const handleAddStepClick = (edgeId: string, evt: React.MouseEvent) => {
+    // Get the container element's bounding rect
+    const flowContainer = document.querySelector('.flex-1.relative');
+    if (!flowContainer) return;
     
-    // Position menu near the edge center (simplistic)
-    const sourceNode = nodes.find(n => n.id === edge.source);
-    const targetNode = nodes.find(n => n.id === edge.target);
-    if (sourceNode && targetNode) {
-        const x = (sourceNode.position.x + targetNode.position.x) / 2 + 100; // offset to right
-        const y = (sourceNode.position.y + targetNode.position.y) / 2 + 125;
-        setAddStepMenu({ edgeId, x, y });
-    }
+    const rect = flowContainer.getBoundingClientRect();
+    const x = evt.clientX - rect.left;
+    const y = evt.clientY - rect.top;
+
+    setAddStepMenu({ edgeId, x, y });
   };
 
   const handleAddDelay = () => {
@@ -161,7 +159,7 @@ export default function Editor({ guideId }: EditorProps) {
                 animated: true,
                 style: { stroke: '#ff7a1a', strokeWidth: 2 },
                 markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
-                data: { onAddStep: (id: string) => handleAddStepClick(id) }
+                data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
             },
             {
                 id: `edge-post-${newNodeId}`,
@@ -171,7 +169,7 @@ export default function Editor({ guideId }: EditorProps) {
                 animated: true,
                 style: { stroke: '#ff7a1a', strokeWidth: 2 },
                 markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
-                data: { onAddStep: (id: string) => handleAddStepClick(id) }
+                data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
             }
         ];
     });
