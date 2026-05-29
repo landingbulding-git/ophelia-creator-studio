@@ -7,11 +7,11 @@ const DelayNode = ({ data, selected }: NodeProps) => {
   const index = data.index as number;
 
   return (
-    <div className={\`
+    <div className={`
       relative group transition-all duration-200
       bg-[#1a1a1a] border rounded-xl overflow-hidden w-52
-      \${selected ? 'border-ophelia-orange shadow-[0_0_15px_rgba(255,122,26,0.3)] scale-105' : 'border-white/10 hover:border-white/20'}
-    \`}>
+      ${selected ? 'border-ophelia-orange shadow-[0_0_15px_rgba(255,122,26,0.3)] scale-105' : 'border-white/10 hover:border-white/20'}
+    `}>
       <Handle type="target" position={Position.Top} className="!bg-ophelia-orange !border-none !w-2 !h-2" />
       
       <div className="p-4 flex flex-col items-center gap-3 bg-black/20">
