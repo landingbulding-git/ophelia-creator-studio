@@ -36,6 +36,13 @@ import {
 import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
 const nodeTypes = {
   step: StepNode,
   delay: DelayNode,
@@ -703,10 +710,10 @@ export default function Editor({ guideId }: EditorProps) {
              <Panel position="top-center" style={{ marginTop: '20px' }}>
                 <button
                     onClick={handleAddAtStartClick}
-                    className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 hover:border-ophelia-orange hover:text-ophelia-orange text-gray-400 px-4 py-2 rounded-full transition-all duration-200 shadow-xl group text-xs font-bold"
+                    className="w-8 h-8 bg-[#1a1a1a] border border-white/10 hover:border-ophelia-orange hover:text-ophelia-orange text-gray-400 rounded-full flex items-center justify-center transition-all duration-200 shadow-xl group"
+                    title="Insert Video at Start"
                 >
-                    <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                    Insert Video at Start
+                    <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 </button>
              </Panel>
           )}
