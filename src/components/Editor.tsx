@@ -31,7 +31,8 @@ import {
   Clock,
   Video,
   FileText,
-  Plus
+  Plus,
+  Link
 } from 'lucide-react';
 import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -691,16 +692,6 @@ export default function Editor({ guideId }: EditorProps) {
                             <span className="text-[9px] opacity-60">Play cursor-following video</span>
                         </div>
                     </button>
-                    <button 
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 cursor-not-allowed text-left"
-                        title="Coming soon"
-                    >
-                        <FileText className="w-4 h-4" />
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold">Explanation</span>
-                            <span className="text-[9px] opacity-60">Coming soon</span>
-                        </div>
-                    </button>
                 </div>
             </div>
           )}
@@ -788,30 +779,47 @@ export default function Editor({ guideId }: EditorProps) {
                   </section>
                 )}
 
-                {/* Video URL */}
-                {activeStep.action === 'video' && (
-                  <section className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Video Source</label>
-                    <div className="bg-ophelia-orange/5 border border-ophelia-orange/20 rounded-xl p-4 flex flex-col gap-4">
+                {/* Step URL */}
+                <section>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">
+                        {activeStep.action === 'video' ? 'Video Source' : 'Target URL'}
+                    </label>
+                    <div className={cn(
+                        "rounded-xl p-4 flex flex-col gap-3 border transition-colors",
+                        activeStep.action === 'video' ? "bg-ophelia-orange/5 border-ophelia-orange/20" : "bg-white/[0.02] border-white/5"
+                    )}>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-ophelia-orange/10 flex items-center justify-center shrink-0">
-                                <Video className="w-4 h-4 text-ophelia-orange" />
+                            <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                activeStep.action === 'video' ? "bg-ophelia-orange/10" : "bg-blue-500/10"
+                            )}>
+                                {activeStep.action === 'video' ? (
+                                    <Video className="w-4 h-4 text-ophelia-orange" />
+                                ) : (
+                                    <Link className="w-4 h-4 text-blue-400" />
+                                )}
                             </div>
-                            <div className="text-[10px] text-gray-400 font-medium">Enter a direct video link or YouTube/Vimeo URL</div>
+                            <div className="text-[10px] text-gray-400 font-medium leading-tight">
+                                {activeStep.action === 'video' 
+                                    ? "Enter a direct video link or YouTube/Vimeo URL." 
+                                    : "The browser will navigate to this URL before this step if it's different from the current page."
+                                }
+                            </div>
                         </div>
-                        <input 
-                            type="text" 
-                            placeholder="https://example.com/video.mp4"
+                        <input
+                            type="text"
+                            placeholder={activeStep.action === 'video' ? "https://example.com/video.mp4" : "Same as previous step"}
                             value={activeStep.url || ''}
                             onChange={(e) => handleUpdateUrl(e.target.value)}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-white focus:border-ophelia-orange/50 outline-none transition-colors"
+                            className={cn(
+                                "w-full bg-black/40 border rounded-lg p-3 text-xs text-white outline-none transition-colors font-mono",
+                                activeStep.action === 'video' ? "border-white/10 focus:border-ophelia-orange/50" : "border-white/10 focus:border-blue-500/50"
+                            )}
                         />
                     </div>
-                  </section>
-                )}
+                </section>
 
-                {/* Technical Fingerprint */}
-                {activeStep.action !== 'delay' && (
+                {/* Technical Fingerprint */}                {activeStep.action !== 'delay' && (
                   <section>
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Interaction</label>
                     <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
