@@ -14,6 +14,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../context/AuthContext';
 import StepNode from './StepNode';
+import DelayNode from './DelayNode';
+import AddStepEdge from './AddStepEdge';
 import { 
   Save, 
   ChevronLeft, 
@@ -24,13 +26,22 @@ import {
   Trash2,
   ExternalLink,
   Layers,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  Video,
+  FileText,
+  Plus
 } from 'lucide-react';
 import { doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 const nodeTypes = {
   step: StepNode,
+  delay: DelayNode,
+};
+
+const edgeTypes = {
+  addStep: AddStepEdge,
 };
 
 interface EditorProps {
@@ -49,6 +60,9 @@ export default function Editor({ guideId }: EditorProps) {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [generatingVars, setGeneratingVars] = useState(false);
 
+  // Add step menu state
+  const [addStepMenu, setAddStepMenu] = useState<{ edgeId: string; x: number; y: number } | null>(null);
+
   const fetchGuide = useCallback(async () => {
     try {
       const token = await user?.getIdToken();
@@ -61,8 +75,8 @@ export default function Editor({ guideId }: EditorProps) {
 
       // Create Nodes
       const initialNodes: Node[] = data.steps.map((step: any, i: number) => ({
-        id: `step-${i}`,
-        type: 'step',
+        id: \`step-\${i}\`,
+        type: step.action === 'delay' ? 'delay' : 'step',
         position: { x: 50, y: i * 250 + 50 },
         data: { step, index: i },
       }));
@@ -71,12 +85,14 @@ export default function Editor({ guideId }: EditorProps) {
       const initialEdges: Edge[] = [];
       for (let i = 0; i < data.steps.length - 1; i++) {
         initialEdges.push({
-          id: `edge-${i}`,
-          source: `step-${i}`,
-          target: `step-${i + 1}`,
+          id: \`edge-\${i}\`,
+          source: \`step-\${i}\`,
+          target: \`step-\${i + 1}\`,
+          type: 'addStep',
           animated: true,
           style: { stroke: '#ff7a1a', strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+          data: { onAddStep: (edgeId: string) => handleAddStepClick(edgeId) }
         });
       }
 
@@ -88,6 +104,80 @@ export default function Editor({ guideId }: EditorProps) {
       setLoading(false);
     }
   }, [guideId, user, setNodes, setEdges]);
+
+  const handleAddStepClick = (edgeId: string) => {
+    const edge = edges.find(e => e.id === edgeId);
+    if (!edge) return;
+    
+    // Position menu near the edge center (simplistic)
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    if (sourceNode && targetNode) {
+        const x = (sourceNode.position.x + targetNode.position.x) / 2 + 100; // offset to right
+        const y = (sourceNode.position.y + targetNode.position.y) / 2 + 125;
+        setAddStepMenu({ edgeId, x, y });
+    }
+  };
+
+  const handleAddDelay = () => {
+    if (!addStepMenu) return;
+    const { edgeId } = addStepMenu;
+    const edge = edges.find(e => e.id === edgeId);
+    if (!edge) return;
+
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    const newStep = {
+        action: 'delay',
+        duration: 1,
+        narration: 'Waiting for a moment...',
+    };
+
+    const newNodeId = \`step-\${Date.now()}\`;
+    const newNode: Node = {
+        id: newNodeId,
+        type: 'delay',
+        position: {
+            x: sourceNode.position.x,
+            y: (sourceNode.position.y + targetNode.position.y) / 2
+        },
+        data: { step: newStep, index: -1 } // index will be recalculated on save
+    };
+
+    setNodes(nds => [...nds, newNode]);
+    
+    // Update edges: replace A->B with A->C and C->B
+    setEdges(eds => {
+        const filtered = eds.filter(e => e.id !== edgeId);
+        return [
+            ...filtered,
+            {
+                id: \`edge-pre-\${newNodeId}\`,
+                source: edge.source,
+                target: newNodeId,
+                type: 'addStep',
+                animated: true,
+                style: { stroke: '#ff7a1a', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+                data: { onAddStep: (id: string) => handleAddStepClick(id) }
+            },
+            {
+                id: \`edge-post-\${newNodeId}\`,
+                source: newNodeId,
+                target: edge.target,
+                type: 'addStep',
+                animated: true,
+                style: { stroke: '#ff7a1a', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+                data: { onAddStep: (id: string) => handleAddStepClick(id) }
+            }
+        ];
+    });
+
+    setAddStepMenu(null);
+  };
 
   useEffect(() => {
     if (user) fetchGuide();
@@ -148,6 +238,33 @@ export default function Editor({ guideId }: EditorProps) {
         data: {
             ...selectedNode.data,
             step: { ...(selectedNode.data.step as any), prompt: newPrompt }
+        }
+    });
+  };
+
+  const handleUpdateDuration = (newDuration: number) => {
+    if (!selectedNode) return;
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              step: { ...(node.data.step as any), duration: newDuration },
+            },
+          };
+        }
+        return node;
+      })
+    );
+    
+    setSelectedNode({
+        ...selectedNode,
+        data: {
+            ...selectedNode.data,
+            step: { ...(selectedNode.data.step as any), duration: newDuration }
         }
     });
   };
@@ -351,6 +468,53 @@ export default function Editor({ guideId }: EditorProps) {
                 <p className="text-xs text-gray-300 italic text-center">Click a node to edit details.</p>
             </Panel>
           </ReactFlow>
+
+          {/* Add Step Menu */}
+          {addStepMenu && (
+            <div 
+                className="absolute z-50 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-2 w-48 animate-in fade-in zoom-in-95 duration-200"
+                style={{ left: addStepMenu.x, top: addStepMenu.y, transform: 'translate(-50%, -100%)' }}
+            >
+                <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-white/5">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Insert Step</span>
+                    <button onClick={() => setAddStepMenu(null)} className="text-gray-500 hover:text-white">
+                        <X className="w-3 h-3" />
+                    </button>
+                </div>
+                <div className="space-y-1">
+                    <button 
+                        onClick={handleAddDelay}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-ophelia-orange/10 text-gray-300 hover:text-ophelia-orange transition-colors text-left group"
+                    >
+                        <Clock className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold">Delay</span>
+                            <span className="text-[9px] opacity-60">Wait for X minutes</span>
+                        </div>
+                    </button>
+                    <button 
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 cursor-not-allowed text-left"
+                        title="Coming soon"
+                    >
+                        <Video className="w-4 h-4" />
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold">Video</span>
+                            <span className="text-[9px] opacity-60">Coming soon</span>
+                        </div>
+                    </button>
+                    <button 
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 cursor-not-allowed text-left"
+                        title="Coming soon"
+                    >
+                        <FileText className="w-4 h-4" />
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold">Explanation</span>
+                            <span className="text-[9px] opacity-60">Coming soon</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+          )}
         </div>
 
         {/* Inspector Panel */}
@@ -395,27 +559,56 @@ export default function Editor({ guideId }: EditorProps) {
                   <p className="text-[10px] text-gray-600 mt-2 italic">Speak for the ear, not the eye. Keep it warm and direct.</p>
                 </section>
 
-                {/* Technical Fingerprint */}
-                <section>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Interaction</label>
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-ophelia-orange/10 flex items-center justify-center">
-                        {activeStep.action === 'type' ? <Type className="w-4 h-4 text-ophelia-orange" /> : <MousePointer2 className="w-4 h-4 text-ophelia-orange" />}
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-gray-500 font-bold uppercase">{activeStep.action || 'Click'}</div>
-                        <div className="text-xs font-mono text-gray-300">target: {activeStep.fingerprint?.tag || 'unknown'}</div>
-                      </div>
+                {/* Delay Duration */}
+                {activeStep.action === 'delay' && (
+                  <section className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Wait Duration</label>
+                    <div className="bg-ophelia-orange/5 border border-ophelia-orange/20 rounded-xl p-4 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-ophelia-orange/10 flex items-center justify-center shrink-0">
+                            <Clock className="w-5 h-5 text-ophelia-orange" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-white">{activeStep.duration || 1} Minutes</span>
+                                <span className="text-[10px] text-gray-500 font-medium">Wait time</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="1" 
+                                max="60" 
+                                value={activeStep.duration || 1}
+                                onChange={(e) => handleUpdateDuration(parseInt(e.target.value))}
+                                className="w-full accent-ophelia-orange h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
                     </div>
-                    
-                    {activeStep.fingerprint?.aria_label && (
-                      <div className="text-[11px] text-gray-500 bg-black/40 p-2 rounded-md border border-white/5">
-                        <span className="text-gray-600">aria-label:</span> {activeStep.fingerprint.aria_label}
+                    <p className="text-[10px] text-gray-600 mt-2 italic">How long should Ophelia wait before the next step?</p>
+                  </section>
+                )}
+
+                {/* Technical Fingerprint */}
+                {activeStep.action !== 'delay' && (
+                  <section>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Interaction</label>
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-ophelia-orange/10 flex items-center justify-center">
+                          {activeStep.action === 'type' ? <Type className="w-4 h-4 text-ophelia-orange" /> : <MousePointer2 className="w-4 h-4 text-ophelia-orange" />}
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-gray-500 font-bold uppercase">{activeStep.action || 'Click'}</div>
+                          <div className="text-xs font-mono text-gray-300">target: {activeStep.fingerprint?.tag || 'unknown'}</div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </section>
+                      
+                      {activeStep.fingerprint?.aria_label && (
+                        <div className="text-[11px] text-gray-500 bg-black/40 p-2 rounded-md border border-white/5">
+                          <span className="text-gray-600">aria-label:</span> {activeStep.fingerprint.aria_label}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
 
                 {/* AI Prompt Extension */}
                 {activeStep.action === 'type' && (
