@@ -458,6 +458,7 @@ export default function Editor({ guideId }: EditorProps) {
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             className="bg-[#0c0c0c]"
           >
