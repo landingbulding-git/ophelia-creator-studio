@@ -75,7 +75,7 @@ export default function Editor({ guideId }: EditorProps) {
 
       // Create Nodes
       const initialNodes: Node[] = data.steps.map((step: any, i: number) => ({
-        id: \`step-\${i}\`,
+        id: `step-${i}`,
         type: step.action === 'delay' ? 'delay' : 'step',
         position: { x: 50, y: i * 250 + 50 },
         data: { step, index: i },
@@ -85,9 +85,9 @@ export default function Editor({ guideId }: EditorProps) {
       const initialEdges: Edge[] = [];
       for (let i = 0; i < data.steps.length - 1; i++) {
         initialEdges.push({
-          id: \`edge-\${i}\`,
-          source: \`step-\${i}\`,
-          target: \`step-\${i + 1}\`,
+          id: `edge-${i}`,
+          source: `step-${i}`,
+          target: `step-${i + 1}`,
           type: 'addStep',
           animated: true,
           style: { stroke: '#ff7a1a', strokeWidth: 2 },
@@ -135,7 +135,7 @@ export default function Editor({ guideId }: EditorProps) {
         narration: 'Waiting for a moment...',
     };
 
-    const newNodeId = \`step-\${Date.now()}\`;
+    const newNodeId = `step-${Date.now()}`;
     const newNode: Node = {
         id: newNodeId,
         type: 'delay',
@@ -154,7 +154,7 @@ export default function Editor({ guideId }: EditorProps) {
         return [
             ...filtered,
             {
-                id: \`edge-pre-\${newNodeId}\`,
+                id: `edge-pre-${newNodeId}`,
                 source: edge.source,
                 target: newNodeId,
                 type: 'addStep',
@@ -164,7 +164,7 @@ export default function Editor({ guideId }: EditorProps) {
                 data: { onAddStep: (id: string) => handleAddStepClick(id) }
             },
             {
-                id: \`edge-post-\${newNodeId}\`,
+                id: `edge-post-${newNodeId}`,
                 source: newNodeId,
                 target: edge.target,
                 type: 'addStep',
