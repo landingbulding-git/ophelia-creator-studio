@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { useAuth } from '../context/AuthContext';
 import StepNode from './StepNode';
 import DelayNode from './DelayNode';
+import VideoNode from './VideoNode';
 import AddStepEdge from './AddStepEdge';
 import { 
   Save, 
@@ -38,6 +39,7 @@ import { db } from '../lib/firebase';
 const nodeTypes = {
   step: StepNode,
   delay: DelayNode,
+  video: VideoNode,
 };
 
 const edgeTypes = {
@@ -76,7 +78,7 @@ export default function Editor({ guideId }: EditorProps) {
       // Create Nodes
       const initialNodes: Node[] = data.steps.map((step: any, i: number) => ({
         id: `step-${i}`,
-        type: step.action === 'delay' ? 'delay' : 'step',
+        type: step.action === 'delay' ? 'delay' : (step.action === 'video' ? 'video' : 'step'),
         position: { x: 50, y: i * 250 + 50 },
         data: { step, index: i },
       }));
@@ -137,6 +139,66 @@ export default function Editor({ guideId }: EditorProps) {
     const newNode: Node = {
         id: newNodeId,
         type: 'delay',
+        position: {
+            x: sourceNode.position.x,
+            y: (sourceNode.position.y + targetNode.position.y) / 2
+        },
+        data: { step: newStep, index: -1 } // index will be recalculated on save
+    };
+
+    setNodes(nds => [...nds, newNode]);
+    
+    // Update edges: replace A->B with A->C and C->B
+    setEdges(eds => {
+        const filtered = eds.filter(e => e.id !== edgeId);
+        return [
+            ...filtered,
+            {
+                id: `edge-pre-${newNodeId}`,
+                source: edge.source,
+                target: newNodeId,
+                type: 'addStep',
+                animated: true,
+                style: { stroke: '#ff7a1a', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+                data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
+            },
+            {
+                id: `edge-post-${newNodeId}`,
+                source: newNodeId,
+                target: edge.target,
+                type: 'addStep',
+                animated: true,
+                style: { stroke: '#ff7a1a', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+                data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
+            }
+        ];
+    });
+
+    setAddStepMenu(null);
+  };
+
+  const handleAddVideo = () => {
+    if (!addStepMenu) return;
+    const { edgeId } = addStepMenu;
+    const edge = edges.find(e => e.id === edgeId);
+    if (!edge) return;
+
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    const newStep = {
+        action: 'video',
+        url: '',
+        narration: 'Watch this quick video...',
+    };
+
+    const newNodeId = `step-${Date.now()}`;
+    const newNode: Node = {
+        id: newNodeId,
+        type: 'video',
         position: {
             x: sourceNode.position.x,
             y: (sourceNode.position.y + targetNode.position.y) / 2
@@ -263,6 +325,33 @@ export default function Editor({ guideId }: EditorProps) {
         data: {
             ...selectedNode.data,
             step: { ...(selectedNode.data.step as any), duration: newDuration }
+        }
+    });
+  };
+
+  const handleUpdateUrl = (newUrl: string) => {
+    if (!selectedNode) return;
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              step: { ...(node.data.step as any), url: newUrl },
+            },
+          };
+        }
+        return node;
+      })
+    );
+    
+    setSelectedNode({
+        ...selectedNode,
+        data: {
+            ...selectedNode.data,
+            step: { ...(selectedNode.data.step as any), url: newUrl }
         }
     });
   };
@@ -492,13 +581,13 @@ export default function Editor({ guideId }: EditorProps) {
                         </div>
                     </button>
                     <button 
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 cursor-not-allowed text-left"
-                        title="Coming soon"
+                        onClick={handleAddVideo}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-ophelia-orange/10 text-gray-300 hover:text-ophelia-orange transition-colors text-left group"
                     >
-                        <Video className="w-4 h-4" />
+                        <Video className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <div className="flex flex-col">
                             <span className="text-xs font-bold">Video</span>
-                            <span className="text-[9px] opacity-60">Coming soon</span>
+                            <span className="text-[9px] opacity-60">Play cursor-following video</span>
                         </div>
                     </button>
                     <button 
@@ -582,6 +671,28 @@ export default function Editor({ guideId }: EditorProps) {
                         </div>
                     </div>
                     <p className="text-[10px] text-gray-600 mt-2 italic">How long should Ophelia wait before the next step?</p>
+                  </section>
+                )}
+
+                {/* Video URL */}
+                {activeStep.action === 'video' && (
+                  <section className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-3">Video Source</label>
+                    <div className="bg-ophelia-orange/5 border border-ophelia-orange/20 rounded-xl p-4 flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-ophelia-orange/10 flex items-center justify-center shrink-0">
+                                <Video className="w-4 h-4 text-ophelia-orange" />
+                            </div>
+                            <div className="text-[10px] text-gray-400 font-medium">Enter a direct video link or YouTube/Vimeo URL</div>
+                        </div>
+                        <input 
+                            type="text" 
+                            placeholder="https://example.com/video.mp4"
+                            value={activeStep.url || ''}
+                            onChange={(e) => handleUpdateUrl(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-white focus:border-ophelia-orange/50 outline-none transition-colors"
+                        />
+                    </div>
                   </section>
                 )}
 
