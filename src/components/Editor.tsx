@@ -107,6 +107,22 @@ export default function Editor({ guideId }: EditorProps) {
     }
   }, [guideId, user, setNodes, setEdges]);
 
+  const onConnect = useCallback(
+    (params: any) => {
+      const newEdge = {
+        ...params,
+        id: `edge-${Date.now()}`,
+        type: 'addStep',
+        animated: true,
+        style: { stroke: '#ff7a1a', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+        data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
+    [setEdges]
+  );
+
   const handleAddStepClick = (edgeId: string, evt: React.MouseEvent) => {
     // Get the container element's bounding rect
     const flowContainer = document.querySelector('.flex-1.relative');
@@ -129,6 +145,17 @@ export default function Editor({ guideId }: EditorProps) {
     const targetNode = nodes.find(n => n.id === edge.target);
     if (!sourceNode || !targetNode) return;
 
+    const insertY = (sourceNode.position.y + targetNode.position.y) / 2;
+    const shiftAmount = 250;
+
+    // Shift all nodes below insertY down
+    setNodes(nds => nds.map(node => {
+        if (node.position.y > insertY) {
+            return { ...node, position: { ...node.position, y: node.position.y + shiftAmount } };
+        }
+        return node;
+    }));
+
     const newStep = {
         action: 'delay',
         duration: 1,
@@ -139,16 +166,13 @@ export default function Editor({ guideId }: EditorProps) {
     const newNode: Node = {
         id: newNodeId,
         type: 'delay',
-        position: {
-            x: sourceNode.position.x,
-            y: (sourceNode.position.y + targetNode.position.y) / 2
-        },
-        data: { step: newStep, index: -1 } // index will be recalculated on save
+        position: { x: sourceNode.position.x, y: insertY },
+        data: { step: newStep, index: -1 }
     };
 
     setNodes(nds => [...nds, newNode]);
     
-    // Update edges: replace A->B with A->C and C->B
+    // Update edges
     setEdges(eds => {
         const filtered = eds.filter(e => e.id !== edgeId);
         return [
@@ -189,6 +213,17 @@ export default function Editor({ guideId }: EditorProps) {
     const targetNode = nodes.find(n => n.id === edge.target);
     if (!sourceNode || !targetNode) return;
 
+    const insertY = (sourceNode.position.y + targetNode.position.y) / 2;
+    const shiftAmount = 250;
+
+    // Shift nodes
+    setNodes(nds => nds.map(node => {
+        if (node.position.y > insertY) {
+            return { ...node, position: { ...node.position, y: node.position.y + shiftAmount } };
+        }
+        return node;
+    }));
+
     const newStep = {
         action: 'video',
         url: '',
@@ -199,16 +234,12 @@ export default function Editor({ guideId }: EditorProps) {
     const newNode: Node = {
         id: newNodeId,
         type: 'video',
-        position: {
-            x: sourceNode.position.x,
-            y: (sourceNode.position.y + targetNode.position.y) / 2
-        },
-        data: { step: newStep, index: -1 } // index will be recalculated on save
+        position: { x: sourceNode.position.x, y: insertY },
+        data: { step: newStep, index: -1 }
     };
 
     setNodes(nds => [...nds, newNode]);
     
-    // Update edges: replace A->B with A->C and C->B
     setEdges(eds => {
         const filtered = eds.filter(e => e.id !== edgeId);
         return [
@@ -237,6 +268,63 @@ export default function Editor({ guideId }: EditorProps) {
     });
 
     setAddStepMenu(null);
+  };
+
+  const handleAddAtStart = () => {
+    if (nodes.length === 0) return;
+    
+    // Find first node
+    const sortedNodes = [...nodes].sort((a, b) => a.position.y - b.position.y);
+    const firstNode = sortedNodes[0];
+
+    const shiftAmount = 250;
+    const insertY = firstNode.position.y - 125;
+
+    // Shift ALL nodes down
+    setNodes(nds => nds.map(node => ({
+        ...node,
+        position: { ...node.position, y: node.position.y + shiftAmount }
+    })));
+
+    const newStep = {
+        action: 'video',
+        url: '',
+        narration: 'Before we begin, watch this quick video...',
+    };
+
+    const newNodeId = `step-${Date.now()}`;
+    const newNode: Node = {
+        id: newNodeId,
+        type: 'video',
+        position: { x: firstNode.position.x, y: insertY + 125 }, // It will be at the original first node's position roughly
+        data: { step: newStep, index: -1 }
+    };
+
+    setNodes(nds => [...nds, newNode]);
+    
+    // Create edge from new node to the old first node
+    setEdges(eds => [
+        {
+            id: `edge-start-${newNodeId}`,
+            source: newNodeId,
+            target: firstNode.id,
+            type: 'addStep',
+            animated: true,
+            style: { stroke: '#ff7a1a', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#ff7a1a' },
+            data: { onAddStep: (id: string, evt: React.MouseEvent) => handleAddStepClick(id, evt) }
+        },
+        ...eds
+    ]);
+
+    setAddStepMenu(null);
+  };
+
+  const handleAddAtStartClick = (evt: React.MouseEvent) => {
+    const flowContainer = document.querySelector('.flex-1.relative');
+    if (!flowContainer) return;
+    const rect = flowContainer.getBoundingClientRect();
+    setAddStepMenu({ edgeId: 'START', x: evt.clientX - rect.left, y: evt.clientY - rect.top });
   };
 
   useEffect(() => {
@@ -544,6 +632,7 @@ export default function Editor({ guideId }: EditorProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
+            onConnect={onConnect}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -558,6 +647,7 @@ export default function Editor({ guideId }: EditorProps) {
           </ReactFlow>
 
           {/* Add Step Menu */}
+          {/* Add Step Menu */}
           {addStepMenu && (
             <div 
                 className="absolute z-50 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-2 w-48 animate-in fade-in zoom-in-95 duration-200"
@@ -571,8 +661,12 @@ export default function Editor({ guideId }: EditorProps) {
                 </div>
                 <div className="space-y-1">
                     <button 
-                        onClick={handleAddDelay}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-ophelia-orange/10 text-gray-300 hover:text-ophelia-orange transition-colors text-left group"
+                        onClick={addStepMenu.edgeId === 'START' ? undefined : handleAddDelay}
+                        disabled={addStepMenu.edgeId === 'START'}
+                        className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left group",
+                            addStepMenu.edgeId === 'START' ? "opacity-20 cursor-not-allowed" : "hover:bg-ophelia-orange/10 text-gray-300 hover:text-ophelia-orange"
+                        )}
                     >
                         <Clock className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <div className="flex flex-col">
@@ -581,7 +675,7 @@ export default function Editor({ guideId }: EditorProps) {
                         </div>
                     </button>
                     <button 
-                        onClick={handleAddVideo}
+                        onClick={addStepMenu.edgeId === 'START' ? handleAddAtStart : handleAddVideo}
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-ophelia-orange/10 text-gray-300 hover:text-ophelia-orange transition-colors text-left group"
                     >
                         <Video className="w-4 h-4 group-hover:scale-110 transition-transform" />
@@ -602,6 +696,19 @@ export default function Editor({ guideId }: EditorProps) {
                     </button>
                 </div>
             </div>
+          )}
+
+          {/* Add at Start Button (Floating over canvas) */}
+          {!addStepMenu && nodes.length > 0 && (
+             <Panel position="top-center" style={{ marginTop: '20px' }}>
+                <button
+                    onClick={handleAddAtStartClick}
+                    className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 hover:border-ophelia-orange hover:text-ophelia-orange text-gray-400 px-4 py-2 rounded-full transition-all duration-200 shadow-xl group text-xs font-bold"
+                >
+                    <Plus className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                    Insert Video at Start
+                </button>
+             </Panel>
           )}
         </div>
 
