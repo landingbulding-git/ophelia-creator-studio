@@ -620,7 +620,7 @@ export default function Editor({ guideId }: EditorProps) {
             <ExternalLink className="w-4 h-4" />
             Original Page
           </button>
-          <button 
+          {guide?.steps?.length > 0 && (<button onClick={() => { const targetUrl = guide.steps[guide.steps.length - 1].url || guide.pageUrl || 'https://'+guide.domain; window.open(targetUrl + '?opheliaContinueRecording=' + guide.id, '_blank'); }} className='bg-[#222] border border-ophelia-orange/30 hover:border-ophelia-orange text-ophelia-orange px-5 py-2 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg'><div className='w-2 h-2 rounded-full bg-red-500 animate-pulse'></div>Continue Recording</button>)}<button 
             onClick={handleSave}
             disabled={saving}
             className="bg-ophelia-orange hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg"
